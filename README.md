@@ -1,2 +1,4 @@
 # BCC327-TP1
-Integrantes:
+Integrantes: Cauã Lemos Câmara
+             Roberto Antonino Menegassi Filho
+             César Augusto Tiago Toto
