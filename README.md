@@ -6,10 +6,9 @@ César Augusto Tiago Toto
 
 ```mermaid
 graph LR
-    main[main] --> feat/login(feat/login)
-    feat/login -->|PR rápido| main
-    main --> feat/layout(feat/layout)
-    feat/layout -->|PR rápido| main
+    main[main] -->|Pull Request| branch(branch)
+    branch -->|Consultar os outros 2| main
+
 ```
 
 
