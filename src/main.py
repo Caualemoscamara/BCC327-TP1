@@ -25,13 +25,14 @@ from modulos.modulo6 import clipping_line_region
 from modulos.modulo7 import clipping_polygon_region
 
 # Ver como passar argc e argv no python
-PATH_FILE = "../data/dados_modelos2D/tree2D_Nterm008.vtk"
+PATH_FILE = "../data/dados_modelos3D/tree3D_Nterm016.vtk"
 
 
 def main():
     plotter = pv.Plotter()
     mesh = pv.read(PATH_FILE)
     plotter.add_mesh(mesh)
+    plotter.camera_position = 'yz'
 
 
     # Modulo 1 - Leitura, primitivas e atributos
