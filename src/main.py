@@ -15,6 +15,7 @@
 #   Alternância entre mapa de cores e espessura proporcional ao raio
 
 import pyvista as pv
+import sys
 
 from modulos.modulo1 import read_and_config
 from modulos.modulo2 import view_widgets
@@ -28,14 +29,11 @@ from modulos.modulo7 import clipping_polygon_region
 PATH_FILE = "../data/dados_modelos2D/tree2D_Nterm008.vtk"
 
 
-def main():
+def main(caminho):
     plotter = pv.Plotter()
-    mesh = pv.read(PATH_FILE)
-    plotter.add_mesh(mesh)
-
 
     # Modulo 1 - Leitura, primitivas e atributos
-    read_and_config(plotter, PATH_FILE)
+    read_and_config(plotter, caminho)
 
     # Modulo 2 - Transformações geométricas e observador
     view_widgets(plotter)
@@ -62,4 +60,10 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    #qual arquivo?
+    if len(sys.argv) > 1:
+        caminho = sys.argv[1]
+    else:
+        caminho = PATH_FILE
+
+    main(caminho)
