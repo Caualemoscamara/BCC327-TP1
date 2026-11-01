@@ -51,7 +51,7 @@ BCC327-TP1/
     		├── modulo1.py        	# Implementação do Módulo 1
     		├── modulo2.py         	# Implementação do Módulo 2
     		└── ...                	# Demais módulos do grupo
-``
+```
 
 ## 👨‍💻 Equipe
 
