@@ -31,8 +31,6 @@ PATH_FILE = "../data/dados_modelos3D/tree3D_Nterm016.vtk"
 
 def main(caminho):
     plotter = pv.Plotter(window_size=[1920, 1080])
-    mesh = pv.read(PATH_FILE)
-    plotter.add_mesh(mesh)
     plotter.camera_position = 'yz'
 
     # Modulo 1 - Leitura, primitivas e atributos
