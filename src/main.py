@@ -29,7 +29,7 @@ PATH_FILE = "../data/dados_modelos3D/tree3D_Nterm016.vtk"
 
 
 def main():
-    plotter = pv.Plotter()
+    plotter = pv.Plotter(window_size=[1920, 1080])
     mesh = pv.read(PATH_FILE)
     plotter.add_mesh(mesh)
     plotter.camera_position = 'yz'

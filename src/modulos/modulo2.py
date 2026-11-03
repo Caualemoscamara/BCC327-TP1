@@ -17,7 +17,7 @@ def view_widgets(plotter: pv.Plotter) -> None:
     plotter.add_radio_button_widget(
         callback = lambda: set_projection(True),
         radio_button_group= 'projection',
-        position=(00.0, 720.0),
+        position=(0, 800),
         title='Projeção ortogonal',
         value=True,
         size = 25,
@@ -26,7 +26,7 @@ def view_widgets(plotter: pv.Plotter) -> None:
     plotter.add_radio_button_widget(
         callback= lambda: set_projection(False),
         radio_button_group= 'projection',
-        position=(00.0, 660.0),
+        position=(0, 740),
         title='Projeção Paralela',
         value=False,
         size = 25,
@@ -35,7 +35,7 @@ def view_widgets(plotter: pv.Plotter) -> None:
     plotter.add_radio_button_widget(
         callback= lambda: set_view('yz'),
         radio_button_group= 'view',
-        position=(790.0, 720.0),
+        position=(1250, 800),
         title='Vista Frontal',
         value=True,
         size= 25,
@@ -44,7 +44,7 @@ def view_widgets(plotter: pv.Plotter) -> None:
     plotter.add_radio_button_widget(
         callback= lambda: set_view('xz'),
         radio_button_group= 'view',
-        position=(790.0, 660.0),
+        position=(1250, 740),
         title='Vista Lateral',
         value= False,
         size= 25,
@@ -53,7 +53,7 @@ def view_widgets(plotter: pv.Plotter) -> None:
     plotter.add_radio_button_widget(
         callback= lambda: set_view('xy'),
         radio_button_group= 'view',
-        position=(790.0, 600.0),
+        position=(1250, 680),
         title='Vista Superior',
         value=False,
         size=25,
