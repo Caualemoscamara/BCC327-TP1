@@ -1,23 +1,11 @@
 # Módulo 4 - Rasterização de polígonos (aula 10): preenchimento Scanline.
 #
 # Uso pela main:
-#     rasterizacao_poligono(plotter, estado)      # 'estado' é o dict devolvido pelo módulo 1
-#                                                 # (opcional: sem ele usa plotter.bounds)
+#     rasterizacao_poligono(plotter, estado) 
 #
 # Teste isolado (a partir de src/):
 #     python3 modulos/modulo4.py ../data/dados_modelos2D/tree2D_Nterm008.vtk
-#
-# O que faz:
-#  1. Define um polígono CÔNCAVO (a "região de interesse") sobre o domínio da árvore.
-#  2. Rasteriza esse polígono com o algoritmo Scanline (Edge Table + Active Edge Table
-#     + regra Par-Ímpar), implementado por nós SEM usar nenhuma função pronta da biblioteca.
-#  3. Mostra na cena a grade de pixels, os pixels preenchidos e o contorno do polígono.
-#  4. Conta pixels preenchidos (fill-rate) e quantos vértices da árvore caem dentro da região.
-#  5. Um botão liga/desliga a visualização.
-#
-# Quem fez o quê:
-#   Nosso código  : Aresta, tabela de arestas (ET), laço Scanline (AET), regra Par-Ímpar.
-#   Biblioteca    : PyVista só DESENHA (grade, pixels, linhas, botão).
+
 
 from pathlib import Path
 import sys
