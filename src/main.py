@@ -33,7 +33,7 @@ def main(caminho):
     plotter = pv.Plotter()
 
     # Modulo 1 - Leitura, primitivas e atributos
-    read_and_config(plotter, caminho)
+    estado = read_and_config(plotter, caminho)
 
     # Modulo 2 - Transformações geométricas e observador
     view_widgets(plotter)
@@ -42,7 +42,7 @@ def main(caminho):
     rasterizacao_linhas(plotter)
 
     # Modulo 4 - Rasterização de poligonos
-    rasterizacao_poligono(plotter)
+    rasterizacao_poligono(plotter, estado)
 
     # Modulo 5 - Aliasing e antialiasing
     aliasing_widgets(plotter)
