@@ -49,7 +49,7 @@ def main(caminho):
     aliasing_widgets(plotter)
 
     # Modulo 6 - Recorte de segmento de reta
-    clipping_line_region(plotter)
+    clipping_line_region(plotter, estado)
 
     # Modulo 7 - Recorte de poligonos
     clipping_polygon_region(plotter)
