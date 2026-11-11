@@ -1,11 +1,17 @@
-# Módulo 4 - Rasterização de polígonos (aula 10): preenchimento Scanline.
-#
-# Uso pela main:
-#     rasterizacao_poligono(plotter, estado) 
+# Módulo 4 - Rasterização de polígonos
 #
 # Teste isolado (a partir de src/):
-#     python3 modulos/modulo4.py ../data/dados_modelos2D/tree2D_Nterm008.vtk
-
+#     python3 modulos/modulo4.py ../data/dados_modelos2D/tree2D_Nterm032.vtk
+#
+# IDEIA DO MÓDULO
+#   A árvore CCO é formada por segmentos (linhas) com um raio. Cada segmento vira um
+#   poligono: um retângulo de largura proporcional ao raio do vaso (4 vértices).
+#   Cada polígono é projetado para coordenadas de PIXEL e preenchido com o algoritmo
+#   Scanline (Edge Table + Active Edge Table + regra Par-Ímpar) dentro de um buffer de
+#   pixels (uma matriz N x N x 3). A cor do polígono depende do raio.
+#
+# Etapas:
+#   segmento (P1, P2, raio) -> retângulo (4 vértices) -> pixels -> Scanline -> imagem
 
 from pathlib import Path
 import sys
@@ -14,270 +20,368 @@ import numpy as np
 import pyvista as pv
 
 import matplotlib
-matplotlib.use("Agg")                           # não abre janela, só gera o arquivo
+matplotlib.use("Agg")                           
 import matplotlib.pyplot as plt
 
-# ---------------------------------------------------------------------------
-# Constantes
-# ---------------------------------------------------------------------------
-LARGURA_GRADE = 30     # nº de pixels na horizontal da grade
-ALTURA_GRADE = 26      # nº de pixels na vertical da grade
 
-# Polígono côncavo de teste (mesmo do código do professor), em coordenadas de PIXEL.
-POLIGONO_EXEMPLO = [(3, 3), (12, 5), (22, 2), (17, 12),
-                    (26, 21), (14, 18), (7, 23), (9, 13)]
+TAMANHO_IMAGEM = 400        # o buffer de pixels tem 400 x 400
+LARGURA_MAX_VASO = 0.035    
+MEIA_LARGURA_MIN = 1.0      
+COR_FUNDO = (255, 255, 255) # branco
+TOLERANCIA = 1e-9           # evita erro de arredondamento de float
 
-POSICAO_Y_BOTAO = 30  # altura (em pixels da janela) do botão
-TOLERANCIA = 1e-9      # evita erro de arredondamento de float 
+POSICAO_Y_BOTAO = 30                       # altura (em pixels da janela) do botão
 
 
-# Parte 1: algoritmo Scanline (matemática pura, sem PyVista)
+#algoritmo Scanline 
 class Aresta:
-    #Uma aresta NÃO horizontal do polígono (um 'nó' da ET / AET)
+    # uma aresta nao horizontal do polígono (um 'no' da ET / AET)
 
     def __init__(self, y_max, x_atual, inclinacao_inversa):
-        self.y_max = y_max                          # onde a aresta deixa de existir
-        self.x_atual = float(x_atual)               # x coordenada inicial da aresta no ponto inferior (y_min)
-        self.inclinacao_inversa = float(inclinacao_inversa)  # 1/m, ou seja é a inclinação inversa da reta(aresta)
+        self.y_max = y_max                                   # linha onde a aresta deixa de existir
+        self.x_atual = float(x_atual)                        # x onde a aresta cruza a linha atual
+        self.inclinacao_inversa = float(inclinacao_inversa)  # 1/m = dx/dy
 
-    #Imprimir na tela 
     def __repr__(self):
         return f"Aresta(ymax={self.y_max}, x={self.x_atual:.2f}, 1/m={self.inclinacao_inversa:.2f})"
 
 
-# função q organiza as arestas do poligono na tabela
 def construir_tabela_de_arestas(vertices):
-    #"""Edge Table (ET): dicionário  y_min -> lista de arestas que COMEÇAM nessa linha.
-    #Arestas horizontais são descartadas (não mudam a paridade)."""
+    # Edge Table (ET): dicionário  y_min -> lista de arestas que COMEÇAM nessa linha.
+    # Arestas horizontais são descartadas (não mudam a paridade).
     tabela = {}
-    quantidade = len(vertices) #quantidade de pontos
+    quantidade = len(vertices)
 
     for i in range(quantidade):
         x1, y1 = vertices[i]
-        x2, y2 = vertices[(i + 1) % quantidade]     # o % fecha o polígono (quando o i = quantidade x2 e y2 é igual a primeiro)
+        x2, y2 = vertices[(i + 1) % quantidade]       # o % fecha o polígono (último -> primeiro)
 
-        if y1 == y2:                                # aresta horizontal: ignora
+        if y1 == y2:                                  # aresta horizontal: ignora
             continue
 
         # descobre qual ponta é a de baixo (y_min) e qual é a de cima (y_max)
         if y1 < y2:
-            y_max = y2
             y_min = y1
+            y_max = y2
             x_no_y_min = x1
         else:
-            y_max = y1
             y_min = y2
+            y_max = y1
             x_no_y_min = x2
 
-        if (x2 - x1) == 0:
-            inclinacao = 0
-        else:
-            inclinacao = (y2-y1) / (x2-x1)
+        inclinacao_inversa = (x2 - x1) / (y2 - y1)    # quanto x muda a cada +1 em y
 
-        if inclinacao == 0:
-            inclinacao_inversa = 0
-        else: 
-            inclinacao_inversa = 1.0 / inclinacao  
-        #cria a aresta
         aresta = Aresta(y_max, x_no_y_min, inclinacao_inversa)
-
         if y_min not in tabela:
-            tabela[y_min] = []  #se  y_min não tiver na tabela ainda cria um balde para cada
-        
+            tabela[y_min] = []                        # cria o "balde" desta linha
         tabela[y_min].append(aresta)
 
-    # dentro de cada balde ordena as arestas do menor x para o maior, se empatar ordena pela menor inclinação inversa (a q mais inclina para esquerda)
+    # dentro de cada balde: menor x primeiro; se empatar, menor inclinação inversa
     for y_min in tabela:
         tabela[y_min].sort(key=lambda a: (a.x_atual, a.inclinacao_inversa))
     return tabela
 
 
-def scanline_preencher(vertices, largura, altura, mostrar_passos=False):
-    #Preenche o polígono. Retorna uma matriz, se o valor for 1 ( vertice dentro) se for 0 (vertice fora).
-    #Para cada linha de varredura y:
-    #  1. remove da AET (tabela q armazena arestas que estão dentro) as arestas que já terminaram (y >= y_max)
-    #  2. move da ET para a AET as arestas que começam em y_min = y
+def scanline_preencher(vertices, imagem, cor, mostrar_passos=False):
+    
+    # Para cada linha de varredura y:
+    #  1. remove da AET as arestas que já terminaram (y >= y_max)
+    #  2. move da ET para a AET as arestas que começam em y
     #  3. ordena a AET pelo x atual
-    #  4. preenche os pixels entre pares de interseções (regra Par-Ímpar)
+    #  4. pinta os pixels entre pares de interseções (regra Par-Ímpar)
     #  5. atualiza x += 1/m para a próxima linha
+    altura = imagem.shape[0]
+    largura = imagem.shape[1]
 
-    # y precisa ser inteiro (é índice de linha) ja x pode continuar igual
-    vertices_temp = []
+    # y precisa ser inteiro (é índice de linha); x pode continuar fracionário
+    vertices_inteiros = []
     for x, y in vertices:
-        vertices_temp.append((x, int(round(y)))) #arredonda o y para ser inteiro
-    vertices = vertices_temp
+        vertices_inteiros.append((x, int(round(y))))
+    vertices = vertices_inteiros
 
-    grade = np.zeros((altura, largura), dtype=int)
     tabela = construir_tabela_de_arestas(vertices)
+    if not tabela:                                    # polígono sem arestas não horizontais
+        return 0
 
-    if not tabela:                                  # polígono sem arestas não horizontais
-        return grade #retorna grade de zeros mesmo, se não existir a tabela
-
-    #y inicial
     y_inicial = min(tabela.keys())
-
-    #encontrar o y_final
     todos_y_max = []
-    for arestas in tabela.values():
-        for a in arestas:
-            todos_y_max.append(a.y_max)
+    for lista_de_arestas in tabela.values():
+        for aresta in lista_de_arestas:
+            todos_y_max.append(aresta.y_max)
     y_final = max(todos_y_max)
 
-    arestas_ativas = []                             # AET (tabela arestas ativas)
+    arestas_ativas = []                               # AET
+    pixels_pintados = 0
 
-    #loop do y_inicial ate y_fiinal
     for y in range(y_inicial, y_final + 1):
-        # 1)remove arestas expiradas
+        # 1) remove arestas expiradas
         arestas_filtradas = []
-        for a in arestas_ativas:
-            if y < a.y_max:
-                arestas_filtradas.append(a)
+        for aresta in arestas_ativas:
+            if y < aresta.y_max:
+                arestas_filtradas.append(aresta)
         arestas_ativas = arestas_filtradas
 
-        # 2)entram as arestas que começam nesta linha
+        # 2) entram as arestas que começam nesta linha
         if y in tabela:
             arestas_ativas.extend(tabela[y])
 
-        # 3)ordena da esquerda para a direita
+        # 3) ordena da esquerda para a direita
         arestas_ativas.sort(key=lambda a: (a.x_atual, a.inclinacao_inversa))
 
-        # 4) Par-Ímpar: 1ª e 2ª interseção formam um trecho, 3ª e 4ª outro, ...
+        # 4) Par-Ímpar: 1ª e 2ª interseção formam um trecho, 3ª e 4ª outro etc
         trechos = []
-        #começa do indice 0 e opula de 2 em 2 ate percorrer todas as arestas
         for i in range(0, len(arestas_ativas) - 1, 2):
             x_esquerda = arestas_ativas[i].x_atual
             x_direita = arestas_ativas[i + 1].x_atual
-            # primeiro pixel inteiro >= x_esquerda e último <= x_direita
-            coluna_inicial = int(np.ceil(x_esquerda - TOLERANCIA)) # arredonda para cima
-            coluna_final = int(np.floor(x_direita + TOLERANCIA)) #arredonda para baiixo
+            coluna_inicial = int(np.ceil(x_esquerda - TOLERANCIA))    # 1º pixel inteiro >= x_esquerda
+            coluna_final = int(np.floor(x_direita + TOLERANCIA))      # último pixel inteiro <= x_direita
             trechos.append((coluna_inicial, coluna_final))
 
-            if 0 <= y < altura:                     # só desenha dentro da grade
+            if 0 <= y < altura:                       # só pinta dentro do buffer
                 c0 = max(0, coluna_inicial)
                 c1 = min(largura - 1, coluna_final)
                 if c0 <= c1:
-                    grade[y, c0:c1 + 1] = 1
+                    imagem[y, c0:c1 + 1] = cor        # pinta o trecho inteiro de uma vez
+                    pixels_pintados += c1 - c0 + 1
 
         if mostrar_passos:
             print(f"y={y:2d}  AET={[(round(a.x_atual, 2), a.y_max) for a in arestas_ativas]}"
                   f"  trechos={trechos}")
 
-        # 5)proxima linha: x de cada aresta anda 1/m
+        # 5) próxima linha: x de cada aresta anda 1/m
         for aresta in arestas_ativas:
             aresta.x_atual += aresta.inclinacao_inversa
 
-    return grade
+    return pixels_pintados
 
 
-# Criar imagem
-def criar_imagem_de_pixels(largura, altura, x_min, y_min, tam_pixel_x, tam_pixel_y, z):
-    dimensoes = (largura + 1, altura + 1, 1)
-    espacamento = (tam_pixel_x, tam_pixel_y, 1.0)
-    origem = (x_min, y_min, z)
+# Parte 2: árvore -> polígonos -> pixels
+def obter_raios(malha, estado):
+    # raio de cada célula (= segmento). Oo módulo 1 já calculou
+    if estado is not None and "raios" in estado:
+        return np.asarray(estado["raios"], dtype=float)
+    for nome in malha.cell_data.keys():
+        if "raio" in nome.lower() or "radius" in nome.lower():
+            return np.asarray(malha.cell_data[nome], dtype=float)
+    raise KeyError("Atributo de raio não encontrado na malha.")
+
+
+def obter_segmentos(malha, raios):
+    # Lista de segmentos: (x1, y1, z1, x2, y2, z2, raio)
+    pontos = np.asarray(malha.points)
+    segmentos = []
+    for i in range(malha.n_cells):
+        ids = list(malha.get_cell(i).point_ids)
+        for j in range(len(ids) - 1):
+            a = pontos[ids[j]]
+            b = pontos[ids[j + 1]]
+            segmentos.append((float(a[0]), float(a[1]), float(a[2]),
+                              float(b[0]), float(b[1]), float(b[2]), float(raios[i])))
+    return segmentos
+
+
+def rotacionar(x, y, z, centro, angulo_graus, modelo_2d):
+    # Gira o ponto em torno do centro do modelo. 3D: eixo Y. 2D: eixo Z (no próprio plano).
+    angulo = np.radians(angulo_graus)
+    c = np.cos(angulo)
+    s = np.sin(angulo)
+    dx = x - centro[0]
+    dy = y - centro[1]
+    dz = z - centro[2]
+    if modelo_2d:
+        return centro[0] + dx * c - dy * s, centro[1] + dx * s + dy * c, z
+    return centro[0] + dx * c + dz * s, y, centro[2] - dx * s + dz * c
+
+
+def criar_poligono_do_vaso(x1, y1, x2, y2, meia_largura):
+    # Transforma o segmento P1->P2 em um retângulo de 4 vértices (em pixels).
+    #   d = direção do segmento (vetor unitário)
+    #   n = normal (perpendicular) a d
+    #   vértices = P1 +- n*h  e  P2 +- n*h   (h = meia largura)
+    # As pontas são estendidas em h ("tampa quadrada") para as junções entre vasos não
+    # deixarem buracos.
+    dx = x2 - x1
+    dy = y2 - y1
+    comprimento = np.sqrt(dx * dx + dy * dy)
+    if comprimento == 0:
+        return None                                   # segmento de tamanho zero: sem polígono
+    dir_x = dx / comprimento
+    dir_y = dy / comprimento
+    normal_x = -dir_y
+    normal_y = dir_x
+
+    ini_x = x1 - dir_x * meia_largura                 # estende a ponta inicial
+    ini_y = y1 - dir_y * meia_largura
+    fim_x = x2 + dir_x * meia_largura                 # estende a ponta final
+    fim_y = y2 + dir_y * meia_largura
+
+    return [(ini_x + normal_x * meia_largura, ini_y + normal_y * meia_largura),
+            (fim_x + normal_x * meia_largura, fim_y + normal_y * meia_largura),
+            (fim_x - normal_x * meia_largura, fim_y - normal_y * meia_largura),
+            (ini_x - normal_x * meia_largura, ini_y - normal_y * meia_largura)]
+
+
+def cor_do_raio(raio, raio_min, raio_max):
+    # Mesma regra de cor do módulo 1:  t = (r - rmin)/(rmax - rmin);  R = t, G = 0.5, B = 1 - t
+    if raio_max == raio_min:
+        t = 0.0
+    else:
+        t = (raio - raio_min) / (raio_max - raio_min)
+    return (int(255 * t), 128, int(255 * (1.0 - t)))
+
+
+def rasterizar_arvore(segmentos, config, angulo_graus=0.0):
+    n = config["tamanho"]
+    imagem = np.zeros((n, n, 3), dtype=np.uint8)
+    imagem[:, :] = COR_FUNDO
+
+    centro = config["centro"]
+    pixels_por_unidade = config["pixels_por_unidade"]
+    raio_min = config["raio_min"]
+    raio_max = config["raio_max"]
+    meia_largura_max = LARGURA_MAX_VASO * n / 2
+
+    vasos = []
+    for x1, y1, z1, x2, y2, z2, raio in segmentos:
+        rx1, ry1, rz1 = rotacionar(x1, y1, z1, centro, angulo_graus, config["modelo_2d"])
+        rx2, ry2, rz2 = rotacionar(x2, y2, z2, centro, angulo_graus, config["modelo_2d"])
+        # mundo -> pixel: centro do modelo vai para o meio da imagem
+        px1 = (rx1 - centro[0]) * pixels_por_unidade + n / 2
+        py1 = (ry1 - centro[1]) * pixels_por_unidade + n / 2
+        px2 = (rx2 - centro[0]) * pixels_por_unidade + n / 2
+        py2 = (ry2 - centro[1]) * pixels_por_unidade + n / 2
+        meia_largura = max(MEIA_LARGURA_MIN, meia_largura_max * raio / raio_max)
+        profundidade = (rz1 + rz2) / 2
+        vasos.append((profundidade, raio, px1, py1, px2, py2, meia_largura))
+
+    vasos.sort(key=lambda v: (v[0], -v[1]))
+
+    #cada vaso vira polígono e é preenchido pelo Scanline
+    total_poligonos = 0
+    total_pixels = 0
+    for profundidade, raio, px1, py1, px2, py2, meia_largura in vasos:
+        poligono = criar_poligono_do_vaso(px1, py1, px2, py2, meia_largura)
+        if poligono is None:
+            continue
+        cor = cor_do_raio(raio, raio_min, raio_max)
+        total_pixels += scanline_preencher(poligono, imagem, cor)
+        total_poligonos += 1
+
+    return imagem, total_poligonos, total_pixels
+
+
+def montar_configuracao(malha, raios):
+    x_min, x_max, y_min, y_max, z_min, z_max = malha.bounds
+    centro = ((x_min + x_max) / 2, (y_min + y_max) / 2, (z_min + z_max) / 2)
+    modelo_2d = (z_max - z_min) < 1e-9 * max(malha.length, 1e-12)
+    # raio da esfera que envolve o modelo: a imagem é quadrada e cabe o modelo em QUALQUER rotação
+    raio_esfera = 0.5 * malha.length
+    lado_do_mundo = 2 * raio_esfera * 1.05
+    return {"tamanho": TAMANHO_IMAGEM, "centro": centro, "modelo_2d": modelo_2d,
+            "lado_do_mundo": lado_do_mundo,
+            "pixels_por_unidade": TAMANHO_IMAGEM / lado_do_mundo,
+            "raio_min": float(np.min(raios)), "raio_max": float(np.max(raios)),
+            "limites": (x_min, x_max, y_min, y_max, z_min, z_max)}
+
+
+def criar_malha_de_pixels(imagem, config):
+    n = config["tamanho"]
+    lado = config["lado_do_mundo"]
+    x_min, x_max, y_min, y_max, z_min, z_max = config["limites"]
+    tam_pixel = lado / n
+    origem_x = x_max + 0.15 * (x_max - x_min)                  # q direita da árvore
+    origem_y = (y_min + y_max) / 2 - lado / 2                  # centralizada na vertical
+    origem = (origem_x, origem_y, config["centro"][2])
+    dimensoes = (n + 1, n + 1, 1)                              # n células = n+1 pontos
+    espacamento = (tam_pixel, tam_pixel, 1.0)
     try:
-        return pv.ImageData(dimensions=dimensoes, spacing=espacamento, origin=origem)
-    except AttributeError:                          # pyvista < 0.40
-        return pv.UniformGrid(dims=dimensoes, spacing=espacamento, origin=origem)
+        malha = pv.ImageData(dimensions=dimensoes, spacing=espacamento, origin=origem)
+    except AttributeError:                                  
+        malha = pv.UniformGrid(dims=dimensoes, spacing=espacamento, origin=origem)
+
+    malha.cell_data["cor"] = imagem.reshape(-1, 3)
+    return malha
+
+
+def desenhar_imagem(plotter, estado4):
+    imagem, poligonos, pixels = rasterizar_arvore(estado4["segmentos"], estado4["config"],
+                                                  estado4["angulo"])
+    estado4["imagem"] = imagem
+    malha = criar_malha_de_pixels(imagem, estado4["config"])
+
+    try:
+        plotter.remove_actor("m4_imagem")                      # tira a imagem anterior
+    except Exception:
+        pass
+    ator = plotter.add_mesh(malha, scalars="cor", rgb=True, preference="cell",
+                            lighting=False, show_scalar_bar=False,
+                            name="m4_imagem", reset_camera=False)
+    ator.SetVisibility(estado4["visivel"])                    
+    estado4["ator"] = ator
+
+    total = estado4["config"]["tamanho"] ** 2
+    plotter.add_text(f"Scanline: {poligonos} polígonos (vasos) | {pixels} pixels pintados "
+                     f"({100 * pixels / total:.1f}% do buffer, com sobreposição)",
+                     position="upper_right", font_size=9, name="info_modulo4")
+    plotter.render()
+    return poligonos, pixels
 
 
 def rasterizacao_poligono(plotter: pv.Plotter, estado: dict = None) -> dict:
-    
-    if estado is not None and "mesh" in estado:
-        malha_arvore = estado["mesh"]
-        x_min, x_max, y_min, y_max, z_min, z_max = malha_arvore.bounds  #valores com minmos e maximos das coordenadas
-        pontos_arvore = np.asarray(malha_arvore.points)
-        diagonal = malha_arvore.length
-    else:                                           # sem o estado do módulo 1
-        x_min, x_max, y_min, y_max, z_min, z_max = plotter.bounds  #valores com minmos e maximos das coordenadas
-        pontos_arvore = None
-        diagonal = float(np.linalg.norm([x_max - x_min, y_max - y_min, z_max - z_min]))
+    if estado is None or "mesh" not in estado:
+        print("[Módulo 4] precisa do 'estado' do módulo 1:  rasterizacao_poligono(plotter, estado)")
+        return None
 
-    #rasteriza o polígono na grade de pixels
-    grade = scanline_preencher(POLIGONO_EXEMPLO, LARGURA_GRADE, ALTURA_GRADE)
-    total_pixels = LARGURA_GRADE * ALTURA_GRADE
-    pixels_preenchidos = int(grade.sum()) #soma de todos elementos da grade
-    taxa_de_preenchimento = pixels_preenchidos / total_pixels
-    print(f"[Módulo 4] Pixels preenchidos: {pixels_preenchidos} de {total_pixels} "
-          f"({100 * taxa_de_preenchimento:.1f}%)")
+    malha = estado["mesh"]
+    raios = obter_raios(malha, estado)
+    segmentos = obter_segmentos(malha, raios)
+    config = montar_configuracao(malha, raios)
 
+    estado4 = {"segmentos": segmentos, "config": config, "angulo": 0.0,
+               "visivel": True, "imagem": None, "ator": None}
 
-    #tamanho físico real de cada pixel
-    tam_pixel_x = (x_max - x_min) / LARGURA_GRADE
-    tam_pixel_y = (y_max - y_min) / ALTURA_GRADE
-    z_plano = z_min - 0.002 * diagonal              # plano um pouco atrás da árvore
+    poligonos, pixels = desenhar_imagem(plotter, estado4)
+    print(f"[Módulo 4] {len(segmentos)} segmentos -> {poligonos} polígonos (retângulos de 4 vértices)")
+    print(f"[Módulo 4] Pixels pintados pelo Scanline: {pixels} (buffer {config['tamanho']}x{config['tamanho']})")
 
-    #malha de pixels com o resultado 
-    imagem = criar_imagem_de_pixels(LARGURA_GRADE, ALTURA_GRADE, x_min, y_min,
-                                    tam_pixel_x, tam_pixel_y, z_plano)
-    # flatten(): linha por linha, o que coincide com a ordem das células da malha (x varia mais rápido)
-    imagem.cell_data["preenchido"] = grade.flatten().astype(float)
+    # salva o PNG 
+    pasta_figuras = Path(__file__).resolve().parents[2] / "report" / "figures"
+    salvar_png(estado4["imagem"], pasta_figuras / "modulo4_arvore_scanline.png")
 
-    # threshold: pega só as células cujo valor >= 0.5, ou seja, os pixels preenchidos
-    so_preenchidos = imagem.threshold(0.5, scalars="preenchido")
-
-    # contorno do polígono em coordenadas do mundo (o 1º ponto é repetido para fechar)
-    # a coordenada de pixel (px, py) vira  x_min + (px + 0.5) * tam_pixel
-    contorno_mundo = [[x_min + (px + 0.5) * tam_pixel_x,
-                       y_min + (py + 0.5) * tam_pixel_y,
-                       z_plano] for px, py in POLIGONO_EXEMPLO]
-    contorno_mundo.append(contorno_mundo[0])
-    contorno = pv.PolyData(np.array(contorno_mundo))
-    quantidade = len(contorno_mundo)
-    contorno.lines = np.hstack([[quantidade], np.arange(quantidade)])  #conectividade das linhas
-
-    #vértices da árvore dentro da região
-    dentro = np.zeros(0, dtype=bool) #array vazio,  para saber se o elemento ta preenchido
-    pontos_dentro = np.zeros((0, 3)) #matriz para armaenar as coordenadas, vazio
-    if pontos_arvore is not None:
-        lista_x = ((pontos_arvore[:, 0] - x_min) / tam_pixel_x).astype(int)
-        lista_y = ((pontos_arvore[:, 1] - y_min) / tam_pixel_y).astype(int)
-        #restringir aos limites
-        colunas = np.clip(lista_x, 0, LARGURA_GRADE - 1)
-        linhas = np.clip(lista_y, 0, ALTURA_GRADE - 1)
-        dentro = grade[linhas, colunas] == 1        # True se o pixel daquele ponto está preenchido
-        pontos_dentro = pontos_arvore[dentro]    #filtra paras os pontos q estão dentro
-        print(f"[Módulo 4] Vértices da árvore dentro da região: {int(dentro.sum())} de {len(pontos_arvore)}")
-
-    #desenha
-    atores = []                                     # guardados para o botão ligar/desligar
-    atores.append(plotter.add_mesh(imagem, style="wireframe", color="gray", opacity=0.3,
-                                   name="m4_grade"))
-    if so_preenchidos.n_cells > 0:
-        atores.append(plotter.add_mesh(so_preenchidos, color="deepskyblue", opacity=0.6,
-                                       show_edges=True, edge_color="white", name="m4_pixels"))
-    atores.append(plotter.add_mesh(contorno, color="red", line_width=3, name="m4_contorno"))
-    if len(pontos_dentro) > 0:
-        atores.append(plotter.add_points(pontos_dentro, color="yellow", point_size=10,
-                                         render_points_as_spheres=True, name="m4_pontos"))
-
-    plotter.add_text(f"Scanline: {pixels_preenchidos}/{total_pixels} pixels ({100 * taxa_de_preenchimento:.1f}%)\n"
-                     f"vértices na região: {int(dentro.sum())}",
-                     position="upper_right", font_size=9, name="info_modulo4")
-
-    #botão para mostrar/esconder
+    #botão: mostrar/esconder a imagem
     def ao_clicar(ligado):
-        for ator in atores:
-            ator.SetVisibility(bool(ligado))        # método do VTK: mostra/esconde o objeto
+        estado4["visivel"] = bool(ligado)
+        estado4["ator"].SetVisibility(bool(ligado))        
         plotter.render()
 
     plotter.add_checkbox_button_widget(ao_clicar, value=True, position=(10, POSICAO_Y_BOTAO),
                                        size=32, color_on="green", color_off="grey")
-    plotter.add_text("Polígono rasterizado (Scanline)", position=(52, POSICAO_Y_BOTAO + 6),
+    plotter.add_text("Árvore rasterizada (Scanline)", position=(52, POSICAO_Y_BOTAO + 6),
                      font_size=10, name="rot_modulo4")
 
-    return {"grade": grade, "pixels_preenchidos": pixels_preenchidos,
-            "taxa_de_preenchimento": taxa_de_preenchimento, "pontos_dentro": pontos_dentro}
+    return estado4
+
+
+# função para salvar a figura
+def salvar_png(imagem, caminho):
+    Path(caminho).parent.mkdir(parents=True, exist_ok=True)
+    plt.imsave(str(caminho), np.flipud(imagem))              
+    print(f"[Módulo 4] Figura salva em: {caminho}")
+
+
+
 
 
 if __name__ == "__main__":
+
     if len(sys.argv) > 1:
         caminho = sys.argv[1]
     else:
-        caminho = "../../data/dados_modelos2D/tree2D_Nterm008.vtk"
+        caminho = "../../data/dados_modelos2D/tree2D_Nterm032.vtk"
 
     malha = pv.read(caminho)
     p = pv.Plotter()
-    p.add_mesh(malha, color="firebrick", line_width=2)   # só para dar contexto no teste isolado
+    p.add_mesh(malha, color="firebrick", line_width=2)   
     rasterizacao_poligono(p, {"mesh": malha})
     p.view_xy()
     p.show()
