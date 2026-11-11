@@ -38,19 +38,25 @@ O projeto foi desenvolvido com uma arquitetura modular, permitindo o trabalho em
 ```text
 BCC327-TP1/
 │
-├── data/			# Ficheiros de dados .vtk (2D e 3D)
-    	├── dados_modelos2D
+├── data/							# Ficheiros de dados .vtk (2D e 3D)
+    	├── dados_modelos2D				
     	├── dados_modelos3D                  	
 ├── demo/
 ├── presentation/
-├── report/
-	├── figures		#Pasta com as figuras geradas              	
+	├── apresentacao.tex			#Arquivo com o código com a Apresentação (.tex)
+	├── apresentacao.pdf			#Arquivo em PDF com a apresentação
+	├── figures						#Figuras usadas na apresentação
+├── report/							#Pasta com as imagens e o Relatório .tex e .pdf
+	├── relatorio.tex
+	├── relatorio.pdf
+	├── figures						#Pasta com as figuras geradas e figuras do relatório              	
 └── src/
-    	├── main.py
-    	├── modulos            	#Pasta com os modulos implementados
+    	├── main.py						
+    	├── modulos            		#Pasta com os modulos implementados
     		├── modulo1.py        	# Implementação do Módulo 1
     		├── modulo2.py         	# Implementação do Módulo 2
-    		└── ...                	# Demais módulos do grupo
+    		├── ...                	# Demais módulos do implementados
+			└── modulo7.py			# Implementação do Módulo 7
 ```
 
 ## 👨‍💻 Equipe
