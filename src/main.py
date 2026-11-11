@@ -20,18 +20,14 @@ import sys
 from modulos.modulo1 import read_and_config
 from modulos.modulo2 import view_widgets
 from modulos.modulo3 import rasterizacao_linhas
-from modulos.modulo4 import rasterizacao_poligono
 from modulos.modulo5 import aliasing_widgets
-from modulos.modulo6 import clipping_line_region
-from modulos.modulo7 import clipping_polygon_region
-
-# Ver como passar argc e argv no python
-PATH_FILE = "../data/dados_modelos3D/tree3D_Nterm016.vtk"
+import modulos.var_global
 
 
 def main(caminho):
     plotter = pv.Plotter(window_size=[1920, 1080])
     plotter.camera_position = 'yz'
+
 
     # Modulo 1 - Leitura, primitivas e atributos
     estado = read_and_config(plotter, caminho)
@@ -40,19 +36,10 @@ def main(caminho):
     view_widgets(plotter)
 
     # Modulo 3 - Rasterização de linhas
-    rasterizacao_linhas(plotter)
-
-    # Modulo 4 - Rasterização de poligonos
-    rasterizacao_poligono(plotter, estado)
+    rasterizacao_linhas(caminho)
 
     # Modulo 5 - Aliasing e antialiasing
     aliasing_widgets(plotter)
-
-    # Modulo 6 - Recorte de segmento de reta
-    clipping_line_region(plotter, estado)
-
-    # Modulo 7 - Recorte de poligonos
-    clipping_polygon_region(plotter)
 
 
     plotter.show()
@@ -61,10 +48,9 @@ def main(caminho):
 
 
 if __name__ == "__main__":
-    #qual arquivo?
     if len(sys.argv) > 1:
         caminho = sys.argv[1]
     else:
-        caminho = PATH_FILE
+        caminho = modulos.var_global.PATH_FILE_DEFAULT
 
     main(caminho)

@@ -2,9 +2,14 @@ import pyvista as pv
 import numpy as np
 import math
 import matplotlib
+import sys
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from matplotlib.lines import Line2D
+from pathlib import Path
+
+sys.path.append(str(Path(__file__).resolve().parent.parent))
+from modulos.var_global import PATH_FILE_MOD3
 
 # Algoritmo DDA
 def dda_line(x1: int, y1: int, x2: int, y2: int) -> list[tuple[int, int]]:
@@ -160,8 +165,13 @@ def plot_rasterization_comparison(segments: list[tuple[tuple[int, int], tuple[in
     plt.tight_layout()    
     
     # Salva graficos em imagem
-    output_out = "rasterizacao_linhas.png"
+    pasta_figuras = Path(__file__).resolve().parents[2] / "report" / "figures"
+    pasta_figuras.mkdir(parents=True, exist_ok=True)
+
+    output_out = "../report/figures/rasterizacao_linhas.png"
     plt.savefig(output_out, dpi=200, bbox_inches='tight')
+
+
     plt.close()
     print(f"Gráfico {output_out} gerado e salvo em seu diretório.")
 
@@ -206,4 +216,10 @@ def rasterizacao_linhas(path: str) -> None:
     print("\n Rasterização de linhas concluída com sucesso.")
 
 
+if __name__ == "__main__":
+    if len(sys.argv) > 1:
+        caminho = sys.argv[1]
+    else:
+        caminho = PATH_FILE_MOD3
 
+    rasterizacao_linhas(caminho)

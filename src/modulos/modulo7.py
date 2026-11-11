@@ -1,5 +1,4 @@
 import pyvista as pv
-import matplotlib.pyplot as plt
 from typing import Literal
 import numpy as np
 
@@ -112,29 +111,32 @@ def contorno(pontos: list[tuple[float, float]], z: float = 0.0) -> pv.PolyData:
     return malha
 
 def recorte_interativo() -> None:
-    
+
+    # Atualiza e redesenha 
     def atualizar():
+            # Encontra as 4 bordas do retangulo
             cx, cy, w, h = estado["cx"], estado["cy"], estado["w"], estado["h"]
             xmin, xmax, ymin, ymax = cx - w / 2, cx + w / 2, cy - h / 2, cy + h / 2
-     
+
             # Sutherland–Hodgman aplicado ao polígono inteiro
             resultado, _historico = sutherland_hodgman_clip(
                 POLIGONO_TESTE, (xmin, ymin, xmax, ymax))
      
-            # saída do algoritmo (vermelho)
+            # Desenha o poligono recortado em vermelho
             if len(resultado) >= 3:
                 pl.add_mesh(contorno(resultado, 0.1), color="red", line_width=4,
                             lighting=False, name="saida_sh", reset_camera=False)
             else:
                 pl.remove_actor("saida_sh")
      
-            # caixa de recorte (preto)
+            # Desenha o retangulo de corte em preto
             caixa = [(xmin, ymin), (xmax, ymin), (xmax, ymax), (xmin, ymax)]
             pl.add_mesh(contorno(caixa, 0.2), color="black", line_width=2,
                         lighting=False, name="caixa", reset_camera=False)
      
             pl.render()
 
+    # Converte a posição do mouse para as coordenadas reais
     def tela_para_mundo(x, y):
         r = pl.renderer
         r.SetDisplayPoint(x, y, 0)
@@ -142,13 +144,16 @@ def recorte_interativo() -> None:
         wx, wy, _, ww = r.GetWorldPoint()
         return wx / ww, wy / ww
 
+    # Ver se pressionou dentro do retangulo e ativa estado de arrastar
     def ao_pressionar(obj, _evento):
         x, y = tela_para_mundo(*obj.GetEventPosition())
+
         if abs(x - estado["cx"]) <= estado["w"] / 2 and abs(y - estado["cy"]) <= estado["h"] / 2:
             estado["arrastando"] = True
             estado["off_x"] = estado["cx"] - x
             estado["off_y"] = estado["cy"] - y
- 
+
+    # Atualiza posiçao do retangulo ao mover o mouse
     def ao_mover(obj, _evento):
         if not estado["arrastando"]:
             return
@@ -156,19 +161,16 @@ def recorte_interativo() -> None:
         estado["cx"] = float(np.clip(x + estado["off_x"], -LIM_X, LIM_X))
         estado["cy"] = float(np.clip(y + estado["off_y"], -LIM_Y, LIM_Y))
         atualizar()
- 
+
+    # Desliga estado de arrastar
     def ao_soltar(_obj, _evento):
         estado["arrastando"] = False
     
     POLIGONO_CONVEXO = [(-7.0, -2.0), (-3, -6), (4, -6), (8, -1), (6, 5), (0, 8), (-5, 6) ]
  
-    POLIGONO_CONCAVO = [(-8.0, -6.0), (8, -6), (8, 6), (5, 6), (5, -2), (2, -2),
-                        (2, 6), (-2, 6), (-2, -2), (-5, -2), (-5, 6), (-8, 6),
-                        ]
- 
     POLIGONO_TESTE = POLIGONO_CONVEXO
 
-    # Atributos de informações da caixa
+    # Atributos de informações do retangulo
     estado = {
         "cx": 3.5,
         "cy": 2.5,
@@ -191,11 +193,14 @@ def recorte_interativo() -> None:
  
     # Sem rotação de câmera (só zoom, sempre em 2D).
     pl.enable_image_style()
+
+    # Atribui funções callbacks a eventos do mouse
     interactor = pl.iren.interactor
     interactor.AddObserver("LeftButtonPressEvent", ao_pressionar)
     interactor.AddObserver("MouseMoveEvent", ao_mover)
     interactor.AddObserver("LeftButtonReleaseEvent", ao_soltar)
 
+    # Atualiza toda a imagem (aciona algoritmo e atualiza)
     atualizar()
     pl.camera_position = [(0, 0, 50), (0, 0, 0), (0, 1, 0)]
     pl.enable_parallel_projection()
