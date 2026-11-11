@@ -22,6 +22,8 @@ import matplotlib
 matplotlib.use("Agg")                      
 import matplotlib.pyplot as plt
 
+from var_global import PATH_FILE_MOD6
+
 
 # Bits dos códigos de região (Cohen-Sutherland):  ACIMA | ABAIXO | DIREITA | ESQUERDA
 ESQUERDA = 1   # 0001
@@ -490,7 +492,7 @@ if __name__ == "__main__":
     if len(sys.argv) > 1:
         caminho = sys.argv[1]
     else:
-        caminho = "../../data/dados_modelos2D/tree2D_Nterm032.vtk"
+        caminho = PATH_FILE_MOD6
 
     malha = pv.read(caminho)
     segmentos_arvore = obter_segmentos(malha)

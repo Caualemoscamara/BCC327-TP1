@@ -22,6 +22,7 @@ from pathlib import Path
 import numpy as np
 import pyvista as pv
 from matplotlib.colors import ListedColormap
+from var_global import PATH_FILE_MOD1
 
 #constantes
 TITULO_BARRA = "Raio do Vaso"
@@ -227,16 +228,15 @@ def read_and_config(plotter: pv.Plotter, path: str) -> dict:
     plotter.add_axes()
 
     if np.ptp(np.asarray(mesh.points)[:, 2]) < 1e-9 * max(mesh.length, 1e-12):
-        plotter.view_xy()                                 # modelo 2D
+        plotter.view_xy()  # modelo 2D
     return estado
 
 
 if __name__ == "__main__":
-    #qual arquivo
     if len(sys.argv) > 1:
         caminho = sys.argv[1]
     else:
-        caminho = "../../data/dados_modelos2D/tree2D_Nterm008.vtk"
+        caminho = PATH_FILE_MOD1
         
     p = pv.Plotter()
     read_and_config(p, caminho)

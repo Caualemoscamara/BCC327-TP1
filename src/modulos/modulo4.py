@@ -22,6 +22,7 @@ import pyvista as pv
 import matplotlib
 matplotlib.use("Agg")                           
 import matplotlib.pyplot as plt
+from var_global import PATH_FILE_MOD4
 
 
 TAMANHO_IMAGEM = 400        # o buffer de pixels tem 400 x 400
@@ -377,7 +378,7 @@ if __name__ == "__main__":
     if len(sys.argv) > 1:
         caminho = sys.argv[1]
     else:
-        caminho = "../../data/dados_modelos2D/tree2D_Nterm032.vtk"
+        caminho = PATH_FILE_MOD4
 
     malha = pv.read(caminho)
     p = pv.Plotter()
