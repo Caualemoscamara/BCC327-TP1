@@ -10,7 +10,7 @@ Trabalho Prático 1 da disciplina de Computação Gráfica (BCC327). O objetivo 
 | --- | --- |
 | Cauã Lemos Câmara | xx.x.xxxx |
 | César Augusto Tiago Totô | 24.1.4038 |
-| Roberto Antonino Menegassi Filho | xx.x.xxxx |
+| Roberto Antonino Menegassi Filho | 24.1.4002 |
 
 ---
 
