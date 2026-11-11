@@ -22,7 +22,9 @@ from pathlib import Path
 import numpy as np
 import pyvista as pv
 from matplotlib.colors import ListedColormap
-from var_global import PATH_FILE_MOD1
+
+sys.path.append(str(Path(__file__).resolve().parent.parent))
+from modulos.var_global import PATH_FILE_MOD1
 
 #constantes
 TITULO_BARRA = "Raio do Vaso"

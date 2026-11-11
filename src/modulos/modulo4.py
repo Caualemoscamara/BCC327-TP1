@@ -22,7 +22,9 @@ import pyvista as pv
 import matplotlib
 matplotlib.use("Agg")                           
 import matplotlib.pyplot as plt
-from var_global import PATH_FILE_MOD4
+
+sys.path.append(str(Path(__file__).resolve().parent.parent))
+from modulos.var_global import PATH_FILE_MOD4
 
 
 TAMANHO_IMAGEM = 400        # o buffer de pixels tem 400 x 400

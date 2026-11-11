@@ -6,8 +6,10 @@ import sys
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from matplotlib.lines import Line2D
-from var_global import PATH_FILE_MOD3
 from pathlib import Path
+
+sys.path.append(str(Path(__file__).resolve().parent.parent))
+from modulos.var_global import PATH_FILE_MOD3
 
 # Algoritmo DDA
 def dda_line(x1: int, y1: int, x2: int, y2: int) -> list[tuple[int, int]]:

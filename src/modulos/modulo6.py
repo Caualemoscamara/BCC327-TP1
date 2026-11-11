@@ -22,7 +22,9 @@ import matplotlib
 matplotlib.use("Agg")                      
 import matplotlib.pyplot as plt
 
-from var_global import PATH_FILE_MOD6
+sys.path.append(str(Path(__file__).resolve().parent.parent))
+
+from modulos.var_global import PATH_FILE_MOD6
 
 
 # Bits dos códigos de região (Cohen-Sutherland):  ACIMA | ABAIXO | DIREITA | ESQUERDA

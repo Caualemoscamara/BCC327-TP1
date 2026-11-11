@@ -1,5 +1,4 @@
 import pyvista as pv
-import matplotlib.pyplot as plt
 from typing import Literal
 import numpy as np
 

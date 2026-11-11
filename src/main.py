@@ -21,7 +21,7 @@ from modulos.modulo1 import read_and_config
 from modulos.modulo2 import view_widgets
 from modulos.modulo3 import rasterizacao_linhas
 from modulos.modulo5 import aliasing_widgets
-from modulos.var_global import PATH_FILE_DEFAULT
+import modulos.var_global
 
 
 def main(caminho):
@@ -51,6 +51,6 @@ if __name__ == "__main__":
     if len(sys.argv) > 1:
         caminho = sys.argv[1]
     else:
-        caminho = PATH_FILE_DEFAULT
+        caminho = modulos.var_global.PATH_FILE_DEFAULT
 
     main(caminho)
