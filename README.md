@@ -8,7 +8,7 @@ Trabalho Prático 1 da disciplina de Computação Gráfica (BCC327). O objetivo 
 
 | Nome | Matrícula |
 | --- | --- |
-| Cauã Lemos Câmara | xx.x.xxxx |
+| Cauã Lemos Câmara | 24.1.4035 |
 | César Augusto Tiago Totô | 24.1.4038 |
 | Roberto Antonino Menegassi Filho | 24.1.4002 |
 
