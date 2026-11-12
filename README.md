@@ -178,20 +178,22 @@ BCC327-TP1/
     	├── dados_modelos2D				
     	├── dados_modelos3D                  	
 ├── demo/
-├── presentation/
-	├── apresentacao.tex			#Arquivo com o código com a Apresentação (.tex)
-	├── apresentacao.pdf			#Arquivo em PDF com a apresentação
-	├── figures						#Figuras usadas na apresentação
-├── report/							#Pasta com as imagens e o Relatório .tex e .pdf
-	├── relatorio.tex
-	├── relatorio.pdf
-	├── figures						#Pasta com as figuras geradas e figuras do relatório              	
+├── presentation/					# Pasta com os arquivos referente a apresentação.
+	├── apresentacao.tex			# Arquivo com o código com a Apresentação (.tex)
+	├── apresentacao.pdf			# Arquivo em PDF com a apresentação
+	├── figures						# Figuras usadas na apresentação
+├── report/							# Pasta com as imagens e o Relatório .tex e .pdf
+	├── relatorio					# Pasta com os arquivos referentes ao relatório
+		├── relatorio.tex			# Arquivo com o código com o relatório (.tex)
+		├── relatorio.pdf			# Arquivo em PDF com o relatório.
+		├── figures					# Pasta com as figuras do relatório.
+	├── figures						# Pasta com as figuras geradas.              	
 └── src/
     	├── main.py						
-    	├── modulos            		#Pasta com os modulos implementados
+    	├── modulos            		# Pasta com os modulos implementados
     		├── modulo1.py        	# Implementação do Módulo 1
     		├── modulo2.py         	# Implementação do Módulo 2
-    		├── ...                	# Demais módulos do implementados
+    		├── ...                	# Demais módulos implementados
 			└── modulo7.py			# Implementação do Módulo 7
 ```
 
