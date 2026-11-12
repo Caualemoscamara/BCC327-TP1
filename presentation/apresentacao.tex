@@ -1,0 +1,420 @@
+\documentclass[aspectratio=169,11pt]{beamer}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[brazil]{babel}
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{booktabs,tabularx}
+\usepackage{graphicx}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{listings}
+\usepackage{tikz}
+\usetikzlibrary{positioning}
+
+\definecolor{ufopred}{RGB}{140,29,36}
+\definecolor{deepnavy}{RGB}{20,35,60}
+\definecolor{lightgray}{RGB}{245,247,250}
+\definecolor{darkslate}{RGB}{30,40,50}
+\definecolor{softblue}{RGB}{230,238,247}
+
+\usetheme{Madrid}
+\usecolortheme{default}
+\setbeamertemplate{navigation symbols}{}
+\setbeamercolor{structure}{fg=ufopred}
+\setbeamercolor{frametitle}{fg=white,bg=ufopred}
+\setbeamercolor{title}{fg=white,bg=ufopred}
+\setbeamercolor{block title}{fg=white,bg=deepnavy}
+\setbeamercolor{block body}{fg=black,bg=lightgray}
+\setbeamercolor{alerted text}{fg=ufopred}
+\setbeamertemplate{footline}{%
+  \leavevmode\hbox{%
+    \begin{beamercolorbox}[wd=.72\paperwidth,ht=2.6ex,dp=1.1ex,leftskip=1.5ex]{author in head/foot}
+      \textcolor{darkslate}{\insertshorttitle}
+    \end{beamercolorbox}%
+    \begin{beamercolorbox}[wd=.28\paperwidth,ht=2.6ex,dp=1.1ex,rightskip=1.5ex plus1fil]{date in head/foot}
+      \hfill \textcolor{darkslate}{\insertframenumber/\inserttotalframenumber}
+    \end{beamercolorbox}%
+  }%
+}
+\setbeamertemplate{caption}[numbered]
+\graphicspath{{figures/}}
+\newcommand{\status}[1]{\textcolor{ufopred}{\textbf{#1}}}
+
+% Figura opcional: se o arquivo não existir, mostra um espaço reservado
+% uso: \fig{arquivo-sem-extensao}{largura}{altura}
+\newcommand{\fig}[3]{%
+  \IfFileExists{figures/#1.png}%
+    {\includegraphics[width=#2,height=#3,keepaspectratio]{#1.png}}%
+    {\fbox{\parbox[c][#3][c]{#2}{\centering\footnotesize\textcolor{ufopred}{[inserir figura: \detokenize{#1}]}}}}}
+
+\title[Visualização CCO -- Computação Gráfica]{Visualização Geométrica e Rasterização de Árvores Arteriais CCO}
+\subtitle{BCC327 -- Computação Gráfica -- TP1}
+\author{Cauã Lemos Câmara \and César Augusto Tiago Totô \and Roberto Antonino Menegassi Filho}
+\institute[UFOP]{Departamento de Computação (DECOM)\\Universidade Federal de Ouro Preto (UFOP)}
+\date{11 de novembro de 2026}
+
+\begin{document}
+
+\begin{frame}
+  \titlepage
+\end{frame}
+
+\begin{frame}{Roteiro}
+  \tableofcontents
+\end{frame}
+
+% =========================================================
+\section{Introdução e Objetivos}
+% =========================================================
+\begin{frame}{Contexto e Objetivo}
+\begin{block}{Problema}
+Como interpretar e visualizar árvores arteriais geradas pelo método CCO e exercitar conceitos de Computação Gráfica?
+\end{block}
+\begin{itemize}
+  \item Modelos CCO fornecidos pelo docente em arquivos \texttt{.vtk}.
+  \item O método CCO \alert{não} foi reimplementado.
+  \item Foco: leitura, representação, rasterização e recorte.
+  \item Distinguir o que é \alert{implementação do grupo} do que é \alert{biblioteca}.
+\end{itemize}
+\end{frame}
+
+\begin{frame}{Objetivos Específicos}
+\begin{enumerate}
+  \item Ler a estrutura dos modelos (pontos, conectividade, raio).
+  \item Representar a árvore por tubos, com raio em cor e espessura.
+  \item Explorar vistas e projeções (ortográfica e perspectiva).
+  \item Rasterizar linhas (DDA, Bresenham) e polígonos (Scanline).
+  \item Comparar renderização com e sem antialiasing.
+  \item Recortar segmentos (Cohen-Sutherland, Liang-Barsky) e polígonos (Sutherland-Hodgman).
+\end{enumerate}
+\end{frame}
+
+% =========================================================
+\section{Fundamentação Teórica}
+% =========================================================
+\begin{frame}{Modelo CCO e Codificação do Raio}
+\begin{columns}[T,onlytextwidth]
+\column{0.52\textwidth}
+\begin{itemize}
+  \item VTK POLYDATA: pontos, células lineares e raio por célula.
+  \item Árvore = vértices + arestas com raio.
+  \item Tubos gerados pelo filtro \texttt{tube} (8 lados, extremidades fechadas).
+\end{itemize}
+\column{0.44\textwidth}
+\begin{block}{Cor pelo raio}
+\[ t=\frac{r-r_{\min}}{r_{\max}-r_{\min}} \]
+\[ R=t,\quad G=0{,}5,\quad B=1-t \]
+\end{block}
+Raio menor $\rightarrow$ azul; raio maior $\rightarrow$ vermelho.
+\end{columns}
+\end{frame}
+
+\begin{frame}{Câmera, Vistas e Projeção}
+\begin{columns}[T,onlytextwidth]
+\column{0.48\textwidth}
+\begin{block}{Perspectiva}
+Objetos distantes aparecem menores.
+\end{block}
+\column{0.48\textwidth}
+\begin{block}{Ortográfica (paralela)}
+Paralelas se mantêm; tamanho independe da distância.
+\end{block}
+\end{columns}
+\vspace{0.2cm}
+\begin{itemize}
+  \item Vistas predefinidas: \texttt{yz}, \texttt{xz} e \texttt{xy}.
+  \item Rotação livre e zoom pela interação padrão do PyVista/VTK.
+\end{itemize}
+\end{frame}
+
+\begin{frame}{Rasterização de Linhas e Polígonos}
+\begin{columns}[T,onlytextwidth]
+\column{0.48\textwidth}
+\begin{block}{Linhas}
+\begin{itemize}
+  \item \textbf{DDA}: passo em ponto flutuante.
+  \item \textbf{Bresenham}: apenas inteiros.
+\end{itemize}
+\[ p_0 = 2\Delta y - \Delta x \]
+\end{block}
+\column{0.48\textwidth}
+\begin{block}{Scanline Fill}
+\begin{itemize}
+  \item Tabelas ET e AET.
+  \item Regra par--ímpar.
+\end{itemize}
+\[ x_{k+1}=x_k+\tfrac{1}{m} \]
+\end{block}
+\end{columns}
+\end{frame}
+
+\begin{frame}{Recorte e Antialiasing}
+\begin{columns}[T,onlytextwidth]
+\column{0.48\textwidth}
+\begin{block}{Recorte}
+\begin{itemize}
+  \item \textbf{Cohen-Sutherland}: códigos de 4 bits.
+  \item \textbf{Liang-Barsky}: forma paramétrica.
+  \item \textbf{Sutherland-Hodgman}: uma borda por vez.
+  \item Cyrus-Beck e Weiler-Atherton: apenas discutidos.
+\end{itemize}
+\end{block}
+\column{0.48\textwidth}
+\begin{block}{Antialiasing}
+\begin{itemize}
+  \item Reduz o serrilhado das bordas.
+  \item MSAA, FXAA e SSAA oferecidos pelo VTK.
+\end{itemize}
+\end{block}
+\end{columns}
+\end{frame}
+
+% =========================================================
+\section{Metodologia e Arquitetura}
+% =========================================================
+\begin{frame}{Tecnologias e Fluxo}
+\begin{columns}[T,onlytextwidth]
+\column{0.46\textwidth}
+\begin{itemize}
+  \item \textbf{Python}: aplicação (\texttt{main.py}).
+  \item \textbf{PyVista / VTK}: leitura, tubos, renderização.
+  \item \textbf{NumPy}: dados e grade de pixels.
+  \item \textbf{Matplotlib}: mapa de cores.
+\end{itemize}
+\column{0.50\textwidth}
+\centering
+\begin{tikzpicture}[
+  node distance=0.35cm,
+  every node/.style={draw,rounded corners,align=center,minimum width=5.6cm,minimum height=0.5cm,font=\footnotesize},
+  arrow/.style={->,thick,ufopred}
+]
+\node (a) {Leitura do VTK};
+\node (b) [below=of a] {Pontos, segmentos e raios};
+\node (c) [below=of b] {Tubos e atributos visuais};
+\node (d) [below=of c] {Câmera, rasterização e recorte};
+\draw[arrow] (a)--(b);
+\draw[arrow] (b)--(c);
+\draw[arrow] (c)--(d);
+\end{tikzpicture}
+\end{columns}
+\end{frame}
+
+\begin{frame}{Módulos da Aplicação}
+\small
+\begin{tabularx}{\textwidth}{c p{0.34\textwidth} X}
+\toprule
+\textbf{Mód.} & \textbf{Tema} & \textbf{Situação}\\
+\midrule
+1 & Leitura e atributos & \status{Implementado}\\
+2 & Câmera e vistas & \status{Parcial} (vistas e projeção via API)\\
+3 & Rasterização de linhas & \status{Implementado} (DDA e Bresenham)\\
+4 & Rasterização de polígonos & \status{Implementado} (Scanline)\\
+5 & Antialiasing & \status{Via biblioteca}\\
+6 & Recorte de segmentos & \status{Implementado} (CS e LB)\\
+7 & Recorte de polígonos & \status{Implementado}\\
+\bottomrule
+\end{tabularx}
+\end{frame}
+
+\begin{frame}{Detalhes de Implementação}
+\begin{itemize}
+  \item \textbf{Linhas}: pontos da árvore levados à grade inteira; 20 primeiros segmentos rasterizados.
+  \item \textbf{Polígonos}: cada segmento vira um retângulo de 4 vértices; buffer de $400\times400$ pixels; ordenação por profundidade (algoritmo do pintor).
+  \item \textbf{Recorte}: janela retangular com slider (10\% a 120\% do modelo); contadores de interseções e divisões.
+\end{itemize}
+\end{frame}
+
+% =========================================================
+\section{Resultados}
+% =========================================================
+\begin{frame}{Modelo e Atributos}
+\begin{columns}[T,onlytextwidth]
+\column{0.34\textwidth}
+\begin{block}{\texttt{tree3D\_Nterm016.vtk}}
+\centering
+\begin{tabular}{lr}
+\toprule
+Pontos & 32\\
+Segmentos & 31\\
+Raio mín. & 0,2261\\
+Raio máx. & 0,6870\\
+\bottomrule
+\end{tabular}
+\end{block}
+\column{0.62\textwidth}
+\centering
+\fig{aplicacao_modelo_3d}{\linewidth}{0.66\textheight}
+\end{columns}
+\end{frame}
+
+\begin{frame}{Comparação com a Referência}
+\begin{columns}[T,onlytextwidth]
+\column{0.34\textwidth}
+\centering
+\fig{referencia_professor_3d}{\linewidth}{0.62\textheight}\\
+{\footnotesize Referência do docente.}
+\column{0.62\textwidth}
+\centering
+\fig{aplicacao_modelo_3d}{\linewidth}{0.62\textheight}\\
+{\footnotesize Aplicação.}
+\end{columns}
+\vspace{0.1cm}
+{\small Estrutura preservada; a aplicação adiciona controles e codificação pelo raio.}
+\end{frame}
+
+\begin{frame}{Codificação por Cor e Espessura}
+\begin{columns}[T,onlytextwidth]
+\column{0.49\textwidth}
+\centering
+\fig{atributos_cor}{\linewidth}{0.56\textheight}\\
+{\footnotesize Cor associada ao raio.}
+\column{0.49\textwidth}
+\centering
+\fig{cor_desativada}{\linewidth}{0.56\textheight}\\
+{\footnotesize Cor uniforme.}
+\end{columns}
+\vspace{0.1cm}
+{\small Cor e espessura podem ser ativadas de forma independente.}
+\end{frame}
+
+\begin{frame}{Rasterização de Linhas}
+\begin{columns}[T,onlytextwidth]
+\column{0.40\textwidth}
+\begin{itemize}
+  \item DDA e Bresenham retornam a lista de pixels $(x,y)$.
+  \item Bresenham trata todos os octantes.
+  \item Comparação com a reta ideal.
+\end{itemize}
+\column{0.56\textwidth}
+\fig{rasterizacao_linhas}{\linewidth}{0.62\textheight}
+\end{columns}
+\end{frame}
+
+\begin{frame}{Rasterização de Polígonos: Scanline}
+\begin{columns}[T,onlytextwidth]
+\column{0.34\textwidth}
+\begin{itemize}
+  \item Teste em polígono côncavo.
+  \item Grade de $30\times26$ pixels.
+  \item \textbf{216} de 780 pixels preenchidos (\textbf{27,7\%}).
+\end{itemize}
+\column{0.62\textwidth}
+\centering
+\fig{scanline_3d}{\linewidth}{0.66\textheight}\\
+{\footnotesize Vista superior com a grade rasterizada.}
+\end{columns}
+\end{frame}
+
+\begin{frame}{Scanline Aplicado à Árvore 2D}
+\centering
+\fig{scanline}{0.85\textwidth}{0.58\textheight}\\[0.1cm]
+{\footnotesize Esquerda: árvore 2D. Direita: árvore rasterizada (Scanline).}
+\end{frame}
+
+\begin{frame}{Vistas Predefinidas}
+\begin{columns}[T,onlytextwidth]
+\column{0.32\textwidth}
+\centering
+\fig{vista_frontal}{\linewidth}{0.45\textheight}\\
+{\footnotesize Frontal}
+\column{0.32\textwidth}
+\centering
+\fig{vista_lateral}{\linewidth}{0.45\textheight}\\
+{\footnotesize Lateral}
+\column{0.32\textwidth}
+\centering
+\fig{vista_superior}{\linewidth}{0.45\textheight}\\
+{\footnotesize Superior}
+\end{columns}
+\vspace{0.15cm}
+\begin{alertblock}{Atenção}
+Os rótulos dos botões de projeção estão invertidos em relação às chamadas da API. A projeção ativa deve ser interpretada pelo comportamento da câmera, não pelo texto do botão.
+\end{alertblock}
+\end{frame}
+
+\begin{frame}{Antialiasing}
+\begin{columns}[T,onlytextwidth]
+\column{0.49\textwidth}
+\centering
+\fig{aa_sem}{\linewidth}{0.33\textheight}\\
+{\footnotesize Sem antialiasing}\\[0.1cm]
+\fig{aa_fxaa}{\linewidth}{0.33\textheight}\\
+{\footnotesize FXAA}
+\column{0.49\textwidth}
+\centering
+\fig{aa_msaa}{\linewidth}{0.33\textheight}\\
+{\footnotesize MSAA}\\[0.1cm]
+\fig{aa_ssaa}{\linewidth}{0.33\textheight}\\
+{\footnotesize SSAA}
+\end{columns}
+\end{frame}
+
+\begin{frame}{Antialiasing: Observações}
+\begin{itemize}
+  \item Modos selecionáveis: nenhum, MSAA, FXAA e SSAA.
+  \item Execução interna feita pelo PyVista/VTK, não pelo grupo.
+  \item Sem comparação quantitativa: apenas capturas da seleção dos modos.
+\end{itemize}
+\end{frame}
+
+\begin{frame}{Recorte de Segmentos}
+\begin{columns}[T,onlytextwidth]
+\column{0.40\textwidth}
+\begin{itemize}
+  \item Janela em laranja.
+  \item Partes mantidas em verde.
+  \item Partes descartadas em vermelho.
+  \item Painel com segmentos inteiros, cortados e rejeitados.
+\end{itemize}
+\column{0.56\textwidth}
+\fig{recorte}{\linewidth}{0.62\textheight}
+\end{columns}
+\end{frame}
+
+% =========================================================
+\section{Discussão e Conclusão}
+% =========================================================
+\begin{frame}{Discussão}
+\begin{itemize}
+  \item \textbf{Próprio do grupo:} leitura VTK, codificação por raio, DDA/Bresenham, Scanline e recorte.
+  \item \textbf{Via biblioteca:} tubos, projeção, vistas e antialiasing.
+  \item \textbf{Limitações:} sem translação, rotação e escala explícitas; rótulos de projeção invertidos; antialiasing sem comparação quantitativa.
+\end{itemize}
+\begin{block}{Desafio principal}
+Integrar dados, atributos e visualização sem atribuir ao grupo algoritmos executados pela biblioteca.
+\end{block}
+\end{frame}
+
+\begin{frame}{Conclusão}
+\begin{itemize}
+  \item Aplicação para visualizar modelos CCO com leitura VTK, tubos e codificação do raio.
+  \item Algoritmos clássicos de rasterização e recorte implementados pelo grupo.
+  \item Trabalho futuro: controles geométricos explícitos, correção dos rótulos de projeção e comparação controlada de antialiasing.
+\end{itemize}
+\end{frame}
+
+\begin{frame}[allowframebreaks]{Referências}
+\scriptsize
+\begin{thebibliography}{9}
+\bibitem{schreiner} SCHREINER, W.; BUXBAUM, P. Computer-optimization of vascular trees. \textit{IEEE Trans. Biomed. Eng.}, v. 40, n. 5, p. 482--491, 1993.
+\bibitem{foley} FOLEY, J. D. et al. \textit{Computer Graphics: Principles and Practice}. 2. ed. Addison-Wesley, 1996.
+\bibitem{pyvista} PYVISTA DEVELOPERS. \textit{PyVista Documentation}. \url{https://docs.pyvista.org/}
+\bibitem{vtk} KITWARE. \textit{VTK -- The Visualization Toolkit}. \url{https://vtk.org/}
+\bibitem{bresenham} BRESENHAM, J. E. Algorithm for computer control of a digital plotter. \textit{IBM Systems Journal}, v. 4, n. 1, p. 25--30, 1965.
+\bibitem{liang} LIANG, Y.-D.; BARSKY, B. A. A new concept and method for line clipping. \textit{ACM TOG}, v. 3, n. 1, p. 1--22, 1984.
+\bibitem{cyrus} CYRUS, M.; BECK, J. Generalized two- and three-dimensional clipping. \textit{Computers \& Graphics}, v. 3, n. 1, p. 23--28, 1978.
+\bibitem{sutherland} SUTHERLAND, I. E.; HODGMAN, G. W. Reentrant polygon clipping. \textit{Commun. ACM}, v. 17, n. 1, p. 32--42, 1974.
+\bibitem{weiler} WEILER, K.; ATHERTON, P. Hidden surface removal using polygon area sorting. \textit{SIGGRAPH '77}, p. 214--222, 1977.
+\end{thebibliography}
+\end{frame}
+
+\begin{frame}{Obrigado!}
+\centering
+{\Huge Obrigado!}\\[0.45cm]
+{\large Perguntas?}\\[0.4cm]
+{\small Cauã Lemos Câmara \quad César Augusto Tiago Totô\\
+Roberto Antonino Menegassi Filho}
+\end{frame}
+
+\end{document}

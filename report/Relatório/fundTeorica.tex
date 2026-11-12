@@ -1,0 +1,79 @@
+\section{Fundamentação teórica}
+
+\subsection{Modelos vasculares CCO e representação geométrica}
+
+O método CCO é uma abordagem construtiva de otimização para geração de árvores vasculares, descrita por Schreiner e Buxbaum \cite{schreiner1993}. Neste TP1, os modelos CCO são dados de entrada fornecidos pelo docente. Portanto, a aplicação não executa o crescimento da árvore nem recalcula suas bifurcações: ela interpreta a geometria já armazenada no arquivo.
+
+Os arquivos utilizados seguem o formato VTK \texttt{POLYDATA}. A estrutura contém coordenadas tridimensionais dos pontos, conectividade das células lineares e um atributo escalar denominado \texttt{raio}, armazenado por célula. Uma árvore pode, assim, ser tratada como um conjunto de vértices e arestas, em que cada aresta possui um raio associado. O número de pontos é obtido por \texttt{mesh.n\_points}, enquanto o número de células é obtido por \texttt{mesh.n\_cells}.
+
+\subsection{Primitivas gráficas e codificação do raio}
+
+Uma linha representa a conectividade entre dois pontos, mas pode ter pouca espessura visual. Para produzir uma representação volumétrica, o módulo 1 reconstrói cada segmento como uma linha independente e aplica o filtro \texttt{tube} do PyVista. O filtro gera uma superfície tubular ao redor da linha; no código, são solicitados oito lados e fechamento das extremidades (\texttt{capping=True}). A geração da superfície tubular é realizada pela biblioteca, não por um algoritmo de cilindrização implementado manualmente pelo grupo.
+
+O raio é utilizado de duas maneiras independentes. Na codificação por cor, o valor de cada segmento é normalizado para o intervalo unitário:
+\[
+t=\frac{r-r_{\min}}{r_{\max}-r_{\min}}, \qquad 0\leq t\leq 1.
+\]
+A cor RGB é então definida por
+\[
+R=t,\qquad G=0{,}5,\qquad B=1-t.
+\]
+Dessa forma, valores menores de raio tendem ao azul e valores maiores tendem ao vermelho, enquanto o canal verde permanece constante. Na codificação por espessura, o raio de visualização é proporcional ao raio original, multiplicado por um fator de escala calculado a partir do comprimento da malha. Quando a opção é desativada, todos os segmentos recebem uma espessura visual constante baseada na média dos raios.
+
+\subsection{Câmera, vistas e projeção}
+
+A posição do observador determina como a geometria do mundo é apresentada na imagem. O espaço do mundo descreve as coordenadas dos objetos na cena; a transformação de visualização posiciona esses objetos em relação à câmera, definindo uma origem e orientações de referência para o observador. A projeção transforma as coordenadas no referencial da câmera em coordenadas de imagem.
+
+Na projeção perspectiva, objetos mais distantes tendem a ocupar uma área menor na imagem. Na projeção ortográfica (ou paralela), linhas paralelas permanecem paralelas e o tamanho projetado não depende da distância à câmera. O módulo 2 oferece três posições predefinidas (\textit{yz}, \textit{xz} e \textit{xy}) e alterna o estado de projeção por meio das funções de câmera do PyVista. A rotação livre e o zoom também podem ser realizados pela interação padrão da janela de visualização.
+
+\subsection{Rasterização de Linhas}
+Rasterizar um segmento é escolher os pixels que melhor o aproximam. O \textbf{DDA - Digital Differential Analyzer} usa o passo $\text{passos} = \max (|\Delta x|,|\Delta y|)$ e incrementos $(\Delta x/\text{passos},\,\Delta y/\text{passos})$ em ponto flutuante, arredondando cada posição. O \textbf{algoritmo de Bresenham}~\cite{bresenham1965} usa apenas aritmética inteira. Para inclinação entre $0$ e $1$, mantém-se um parâmetro de decisão
+
+\begin{equation}
+p_{0} = 2\Delta y - \Delta x, \qquad
+p_{k+1} = \begin{cases} p_k + 2\Delta y & \text{se } p_k<0 \;(\text{mantém } y)\\ p_k + 2(\Delta y-\Delta x) & \text{se } p_k\ge 0 \;(y\leftarrow y\pm1)\end{cases}
+\end{equation}
+e os demais octantes são tratados trocando os papéis de $x$ e $y$.
+
+\subsection{Rasterização de polígonos: Scanline Fill}
+
+Rasterizar um polígono significa determinar quais elementos de uma grade discreta pertencem ao seu interior. O Scanline Fill percorre a região linha a linha. Para cada coordenada vertical inteira, são calculadas as interseções da linha de varredura com as arestas não horizontais do polígono. As interseções são ordenadas pela coordenada horizontal e os pixels entre pares sucessivos são preenchidos, segundo a regra par--ímpar.
+
+A implementação utiliza uma tabela de arestas (ET), organizada pela coordenada mínima $y$ de cada aresta, e uma tabela de arestas ativas (AET), atualizada a cada linha. A coordenada horizontal de cada interseção é atualizada incrementalmente por
+\[
+x_{k+1}=x_k+\frac{1}{m},
+\]
+em que $m$ é a inclinação da aresta. A implementação ignora arestas horizontais, remove arestas ao alcançar seu $y_{\max}$, ordena as interseções e preenche os intervalos delimitados por pares de interseções. O resultado é uma matriz binária: valor 1 para pixels preenchidos e 0 para pixels externos.
+
+\subsection{Aliasing e antialiasing}
+
+A rasterização de contornos inclinados pode produzir bordas visualmente serrilhadas, fenômeno conhecido como aliasing. Técnicas de antialiasing buscam reduzir esse efeito por meio de amostragem ou filtragem. O módulo 5 não implementa filtros próprios: ele oferece controles para desativar o antialiasing ou solicitar à biblioteca PyVista/VTK os modos MSAA, FXAA e SSAA. Assim, o trabalho demonstra a seleção dessas opções da API, sem apresentar uma implementação manual dos respectivos algoritmos.
+
+\begin{table}[htbp]
+\centering
+\caption{Comparação entre as técnicas de antialiasing (MSAA, FXAA e SSAA)}
+\label{tab:antialiasing}
+\begin{tabular}{|l|p{5cm}|p{4.5cm}|}
+\hline
+\textbf{Técnica} & \textbf{Funcionamento} & \textbf{Qualidade}\\ \hline
+\textbf{SSAA} \newline (Super Sampling) & Renderiza a cena em uma resolução superior (ex: 4x) e depois redimensiona para a resolução nativa da tela. & \textbf{Altíssima}: Suaviza geometria, texturas e efeitos de shader em toda a cena. \\ \hline
+\textbf{MSAA} \newline (Multi-Sampling) & Amostra múltiplos pontos de cor e profundidade de forma seletiva, apenas nas \textit{bordas dos polígonos}. & \textbf{Boa}: Excelente para arestas geométricas, mas não afeta texturas ou pixels internos. \\ \hline
+\textbf{FXAA} \newline (Fast Approximate) & Técnica de pós-processamento 2D que analisa a imagem já renderizada, deteta contrastes e desfoca as bordas. & \textbf{Aceitável}: Corrige o serrilhado de forma geral, mas pode causar um leve desfoque na imagem. \\ \hline
+\end{tabular}
+\end{table}
+
+
+\subsection{Recorte de segmentos}
+\textbf{Cohen-Sutherland.} Cada extremo recebe um código de 4 bits (esquerda, direita, abaixo, acima). Se $c_1\,|\,c_2=0$, o segmento é aceito; se $c_1\,\&\,c_2\neq0$, é rejeitado; caso contrário, um extremo externo é substituído pela interseção com a borda indicada, por exemplo
+\begin{equation}
+x = x_1 + (x_2-x_1)\,\frac{y_{\max}-y_1}{y_2-y_1},\quad y=y_{\max},
+\end{equation}
+e o processo se repete.
+
+\textbf{Liang--Barsky}~\cite{liangbarsky1984}. Parametriza-se $P(t)=P_1+t(P_2-P_1)$, $t\in[0,1]$, e impõe-se $t\,p_k\le q_k$ para cada borda, com
+$p=(-\Delta x,\Delta x,-\Delta y,\Delta y)$ e $q=(x_1-x_{\min},\,x_{\max}-x_1,\,y_1-y_{\min},\,y_{\max}-y_1)$. Para $p_k<0$ o segmento está entrando e $r_k=q_k/p_k$ atualiza $t_{\text{ent}}=\max(0,r_k)$; para $p_k>0$ está saindo e $t_{\text{sai}}=\min(1,r_k)$. Se $p_k=0$ e $q_k<0$, o segmento é paralelo e externo. O segmento é visível se $t_{\text{ent}}\le t_{\text{sai}}$.
+
+\textbf{Cyru--Beck}~\cite{cyrusbeck1978} (apenas discutido). Generaliza o problema para qualquer janela \emph{convexa}: para cada aresta $i$ com normal externa $\mathbf n_i$ e ponto $\mathbf P_{E_i}$, impõe-se $\mathbf n_i\cdot(P(t)-\mathbf P_{E_i})\le0$, o que dá $p_i=\mathbf n_i\cdot\mathbf D$ e $q_i=\mathbf n_i\cdot(\mathbf P_{E_i}-\mathbf P_1)$, com $\mathbf D=P_2-P_1$. Liang--Barsky é a especialização desse esquema para retângulos alinhados aos eixos, onde os produtos escalares se reduzem a $\pm\Delta x$ e $\pm\Delta y$.
+
+\subsection{Recorte de polígonos}
+O algoritmo de \textbf{Sutherland--Hodgman}~\cite{sutherlandhodgman1974} recorta o polígono contra uma borda da janela por vez. Para cada aresta $(S,P)$ da lista de vértices, há quatro casos: (i) ambos dentro: emite $P$; (ii) $S$ dentro e $P$ fora: emite a interseção; (iii) ambos fora: nada; (iv) $S$ fora e $P$ dentro: emite a interseção e $P$. A saída de uma borda é a entrada da seguinte. O \textbf{Weiler--Atherton}~\cite{weileratherton1977} percorre os contornos do polígono e da janela alternando entre eles nos pontos de interseção, o que lhe permite produzir \emph{vários} polígonos de saída.
