@@ -175,8 +175,8 @@ Em tela, o programa também mostra: nome do modelo, nº de pontos/segmentos e ra
 BCC327-TP1/
 │
 ├── data/							# Ficheiros de dados .vtk (2D e 3D)
-    	├── dados_modelos2D				
-    	├── dados_modelos3D                  	
+    ├── dados_modelos2D				
+    ├── dados_modelos3D                  	
 ├── demo/
 ├── presentation/					# Pasta com os arquivos referente a apresentação.
 	├── apresentacao.tex			# Arquivo com o código com a Apresentação (.tex)

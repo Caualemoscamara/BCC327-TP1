@@ -1,0 +1,7 @@
+\frametitle{Comandos de Execucao}
+\begin{block}{Execução}
+\begin{lstlisting}[language=bash]
+python main.py
+\end{lstlisting}
+\end{block}
+O módulo principal inicia a interface e utiliza o modelo padrão quando nenhum arquivo é informado.

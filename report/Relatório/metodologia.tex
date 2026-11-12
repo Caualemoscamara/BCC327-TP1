@@ -1,0 +1,57 @@
+\section{Metodologia e arquitetura da aplicação}
+
+\subsection{Tecnologias e organização}
+
+A aplicação foi escrita em Python e utiliza PyVista para leitura dos arquivos VTK, construção de objetos geométricos, renderização e widgets de interação. NumPy é utilizado nas operações numéricas sobre os atributos e na construção da grade de pixels; Matplotlib fornece o objeto de mapa de cores RGB utilizado pelo módulo 1. O ponto de entrada é \texttt{main.py}, que instancia um \texttt{Plotter} com janela de 1920 por 1080 pixels e chama sequencialmente os módulos.
+
+\begin{table}[H]
+\centering
+\small
+\caption{Responsabilidade e situação dos módulos da aplicação.}
+\label{tab:modulos}
+\begin{tabularx}{\textwidth}{c l X l}
+\toprule
+\textbf{Módulo} & \textbf{Tema} & \textbf{Comportamento observado no código} & \textbf{Situação}\\
+\midrule
+1 & Leitura e atributos & Lê VTK, extrai pontos, células e raios; constrói tubos e controles de cor/espessura. & Implementado\\
+2 & Câmera e vistas & Oferece três vistas predefinidas e alternância de projeção pela API. & Parcial\\
+3 & Rasterização de linhas & A função \texttt{rasterizacao\_linhas} retorna sem executar algoritmo. & Implementado\\
+4 & Rasterização de polígonos & Implementa ET/AET e preenchimento Scanline de polígono. & Implementado\\
+5 & Antialiasing & Widgets selecionam opções MSAA, FXAA, SSAA ou desativação da API. & Via biblioteca\\
+6 & Recorte de segmentos & A função \texttt{clipping\_line\_region} retorna sem executar algoritmo. & Implementado\\
+7 & Recorte de polígonos & A função \texttt{clipping\_polygon\_region} retorna sem executar algoritmo. & Implementado\\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{Leitura e preparação dos modelos}
+
+O módulo 1 carrega o arquivo informado na linha de comando ou, na ausência de argumento, utiliza \texttt{tree3D\_Nterm016.vtk}. O nome do atributo de raio é localizado procurando-se por nomes que contenham \texttt{raio}, \texttt{radius} ou \texttt{radii}. Os valores mínimo e máximo são calculados com NumPy. Em seguida, cada célula é percorrida para recuperar os pares de pontos consecutivos, associando-se a cada segmento o raio da célula de origem.
+
+O código cria uma nova estrutura \texttt{PolyData} com linhas de dois pontos e replica o raio nos dois extremos de cada segmento. Essa estrutura é encaminhada ao filtro \texttt{tube}. A interface disponibiliza caixas de seleção independentes para ligar ou desligar o mapa de cores e a espessura proporcional ao raio.
+
+\subsection{Câmera e interface}
+
+O módulo 2 cria dois grupos de botões de opção. O primeiro altera a projeção por meio de \texttt{enable\_parallel\_projection()} e \texttt{disable\_parallel\_projection()}, o segundo seleciona as posições \texttt{yz}, \texttt{xz} e \texttt{xy}. A interação de mouse permanece sob responsabilidade do visualizador PyVista/VTK.
+
+Foi identificada uma inconsistência que deve ser considerada na interpretação das capturas: no código fornecido, a opção rotulada como ``Projeção ortogonal'' chama \texttt{disable\_parallel\_projection()}, enquanto a opção rotulada como ``Projeção Paralela'' chama \texttt{enable\_parallel\_projection()}. Como a projeção paralela corresponde à ortográfica, os rótulos da interface estão invertidos em relação às chamadas realizadas. Por isso, o relatório não atribui o tipo de projeção apenas ao texto selecionado na captura.
+
+
+\subsection{Rasterização de linhas}
+Os algoritmos DDA e Bresenham foram implementados, ambos retornando a lista de pixels $(x,y)$ do segmento. A versão de Bresenham trata todos os octantes: quando $|\Delta x|\ge|\Delta y|$ avança-se em $x$, e caso contrário em $y$, ajustando os sinais dos passos. Os pontos da árvore são levados à grade inteira por $\lceil 500\,c\rceil$ por coordenada, e os 20 primeiros segmentos são rasterizados. A figura de comparação marca os pixels de Bresenham (células coloridas), os centros dos pixels do DDA (círculos) e a reta ideal contínua (tracejada).
+
+\subsection{Rasterização de polígonos}
+Cada segmento da árvore é transformado em um retângulo de 4 vértices: dada a direção unitária $\mathbf d$ do segmento e sua normal $\mathbf n$, os vértices são $P_1\mp\mathbf n h$ e $P_2\pm\mathbf n h$ (com as pontas estendidas em $h$ para evitar buracos nas junções), onde a meia-largura $h$ é proporcional ao raio, com mínimo de 1 pixel. Os polígonos são projetados para um buffer de $400\times400$ pixels (o centro do modelo vai para o meio da imagem) e preenchidos com o Scanline (ET, AET e regra par-ímpar), com a cor definida pela mesma regra do Módulo 1. Os vasos são ordenados por profundidade $z$ (e, em empate, do maior para o menor raio) antes do desenho, aproximando o algoritmo do pintor. O módulo também implementa uma rotação do modelo em torno de seu centro (eixo $Y$ em 3D e eixo $Z$ em 2D) antes da projeção. O buffer é exibido como uma malha de pixels (\texttt{ImageData}) ao lado da árvore e pode ser ocultado por um botão.
+
+\subsection{Antialiasing}
+Um grupo de botões de rádio permite alternar entre ausência de antialiasing, MSAA, FXAA e SSAA, que são implementados pelo pipeline gráfico do VTK e acionados via \texttt{enable\_anti\_aliasing} do PyVista. Este módulo não implementa os algoritmos, sua contribuição é a comparação interativa e a explicação do seu funcionamento.
+
+\subsection{Recorte de segmentos}
+Cohen-Sutherland e Liang-Barsky foram implementados manualmente, ambos retornando se o segmento é visível e seus extremos recortados. Contadores registram o número de interseções e de divisões realizadas, para a comparação entre os métodos. A janela de recorte é um retângulo centrado na árvore, com tamanho controlado por um \emph{slider} (de 10\% a 120\% da extensão do modelo; padrão de 50\%). O recorte opera no plano $xy$, em modelos 3D, o valor de $z$ dos novos extremos é obtido por interpolação linear ao longo do segmento original. A cena exibe a janela (laranja), as partes mantidas (verde) e as descartadas (vermelho), e um painel com o total de segmentos aceitos inteiros, cortados e rejeitados. Há também a geração de uma figura com três painéis (antes, depois com Cohen-Sutherland e depois com Liang-Barsky).
+
+\subsection{Recorte de polígonos}
+O Sutherland-Hodgman foi implementado para janelas retangulares alinhadas aos eixos, em quatro funções. \texttt{is\_inside} testa o semiplano de cada borda, considerando pontos sobre a borda como internos. \texttt{compute\_intersection} calcula o ponto de cruzamento por parametrização da aresta e, se ela é paralela à borda, devolve o ponto inicial. \texttt{sutherland\_hodgman\_clip\_edge} realiza um passo do algoritmo: percorre os vértices tomando o último como ``anterior'' do primeiro e aplica os quatro casos da Seção~2. Por fim, \texttt{sutherland\_hodgman\_clip} encadeia as quatro bordas na ordem \emph{abaixo, direita, topo, esquerda}, a saída de cada etapa servindo de entrada da seguinte, e devolve também o histórico do polígono após cada borda. Cada etapa percorre a lista uma única vez, portanto o custo é linear no número de vértices.
+
+O polígono de teste usado na demonstração é \textbf{convexo}, com 7 vértices: $(-7,-2)$, $(-3,-6)$, $(4,-6)$, $(8,-1)$, $(6,5)$, $(0,8)$ e $(-5,6)$. Ele fica na constante \texttt{POLIGONO\_TESTE}, o que permite trocá-lo por qualquer outra lista de vértices. A janela de recorte tem tamanho fixo de $10\times8$, inicialmente centrada em $(3{,}5;\,2{,}5)$, e é \textbf{arrastada com o botão esquerdo do mouse}: observadores do VTK tratam os eventos de pressionar, mover e soltar, e as coordenadas de tela são convertidas para o mundo por \texttt{DisplayToWorld}. O centro é limitado a $[-15,15]\times[-11,11]$ para a janela não sair da cena.
+
+A cena é 2D, com projeção paralela, câmera sobre o eixo $z$ e estilo de interação de imagem (sem rotação, apenas zoom). O polígono original é desenhado em cinza, a janela em preto e a saída do algoritmo em vermelho, em três níveis de $z$ ligeiramente diferentes para evitar sobreposição visual. A cada movimento da janela o recorte é recalculado sobre o polígono inteiro, e a saída só é desenhada se tiver pelo menos 3 vértices.

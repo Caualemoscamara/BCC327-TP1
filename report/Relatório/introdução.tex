@@ -1,0 +1,9 @@
+\section{Introdução e objetivos}
+
+Árvores arteriais podem ser representadas computacionalmente como estruturas ramificadas compostas por pontos, segmentos e atributos geométricos associados aos vasos. No contexto deste trabalho, os modelos foram gerados previamente pelo método \emph{Constrained Constructive Optimization} (CCO) e disponibilizados em arquivos VTK. O objetivo do TP1 não é reconstruir o método CCO, mas desenvolver uma aplicação que permita interpretar e visualizar seus resultados e exercitar conceitos fundamentais de Computação Gráfica.
+
+A aplicação foi organizada em módulos Python e utiliza PyVista como interface de visualização sobre a infraestrutura VTK. O escopo efetivamente desenvolvido inclui a leitura dos modelos, a conversão de segmentos em tubos, a associação de cor e espessura ao raio, a seleção de vistas, a apresentação de uma região poligonal rasterizada por Scanline e a ativação de modos de antialiasing.
+
+O objetivo geral deste artigo é documentar a arquitetura e os resultados observáveis da aplicação, com atenção à distinção entre algoritmos implementados pelo grupo e operações delegadas à biblioteca. Como objetivos específicos, busca-se: (i) ler e interpretar a estrutura geométrica dos modelos CCO (pontos, conectividade e raio); (ii) representar a árvore por tubos e codificar o raio por cor e/ou espessura; (iii) permitir vistas distintas do observador e a comparação entre projeção ortográfica e em perspectiva; (iv) implementar manualmente a rasterização de linhas (DDA e Bresenham) e de polígonos (Scanline); (v) comparar visualmente a renderização com e sem antialiasing; (vi) implementar o recorte de segmentos (Cohen-Sutherland e Liang-Barsky) e de polígonos (Sutherland-Hodgman); e (vii) documentar claramente o que foi implementado pelo grupo e o que foi realizado pela biblioteca.
+
+O método CCO em si não foi reimplementado, os modelos foram fornecidos pelo professor.
